@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top20 ETF Chartboard – Prototyp</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b1220;--card:#131d33;--card2:#0f1830;--txt:#e8eefc;--mut:#93a1c0;--acc:#38e1a0;--acc2:#5aa2ff;--red:#ff6b6b;--yel:#ffd166}
+*{box-sizing:border-box}html,body{overflow-x:hidden;max-width:100%}body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{padding:14px 18px;border-bottom:1px solid #22314f;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+header h1{font-size:19px;margin:0}header .sub{color:var(--mut);font-size:12.5px}
+.badge{background:#1c2a4a;border:1px solid #2c3f68;border-radius:20px;padding:3px 10px;font-size:12px;color:var(--mut)}
+.badge.live{color:var(--acc);border-color:#1f6b4d}.wrap{padding:12px 14px 40px;max-width:1400px;margin:0 auto;overflow-x:clip;min-width:0}
+/* TICKER */
+.tickers{border:1px solid #22314f;border-radius:12px;overflow:hidden;margin:10px 0 14px;background:#0d1528}
+.lane{display:flex;align-items:stretch;border-bottom:1px solid #1a2642}.lane:last-child{border-bottom:0}
+.lane-label{flex:0 0 118px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;letter-spacing:.08em;padding:8px}
+.l1{background:#123a2b;color:var(--acc)}.l2{background:#1b2f5e;color:#9dbfff}.l3{background:#4a2b14;color:var(--yel)}.l4{background:#3a1f3a;color:#e2a8ff}
+.viewport{overflow:hidden;flex:1;position:relative;white-space:nowrap}
+.track{display:inline-block;padding:8px 0;animation:scroll 60s linear infinite;will-change:transform}
+.lane:hover .track{animation-play-state:paused}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tick{ display:inline-block;margin-right:26px;font-size:12.5px;font-variant-numeric:tabular-nums}
+.tick b{margin-right:6px}.up{color:var(--acc)}.down{color:var(--red)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0}
+@media(max-width:950px){.grid{grid-template-columns:1fr}.lane-label{flex-basis:86px}header h1{font-size:16px}.tick{font-size:11.5px}}
+.card{background:var(--card);border:1px solid #22314f;border-radius:12px;padding:12px 12px 10px;min-height:200px;min-width:0;overflow:hidden}
+.card h2{margin:0 0 4px;font-size:15px}.card p.hint{margin:0 0 10px;color:var(--mut);font-size:12px}
+.filters button{background:#1c2a4a;color:var(--txt);border:1px solid #2c3f68;border-radius:16px;padding:4px 10px;font-size:12px;cursor:pointer;margin:0 6px 8px 0}
+.filters button.on{background:var(--acc2);border-color:var(--acc2);color:#081226;font-weight:700}
+ul.news{list-style:none;margin:0;padding:0;max-height:330px;overflow:auto}
+ul.news li{border-top:1px solid #22314f;padding:8px 2px;font-size:13px}
+ul.news li small{color:var(--mut);display:block;font-size:11.5px;margin-top:2px}
+.tag{display:inline-block;font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:middle}
+.t-zb{background:#123a2b;color:var(--acc)}.t-em{background:#1b2f5e;color:#9dbfff}.t-rb{background:#4a2b14;color:var(--yel)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:6px 6px;border-top:1px solid #22314f;font-variant-numeric:tabular-nums;word-break:break-word}
+th{color:var(--mut);font-weight:600;border-top:0}
+.table-scroll{overflow-x:auto;max-width:100%}
+.etf-toggle{max-height:150px;overflow:auto;border:1px solid #22314f;border-radius:8px;padding:6px;margin:8px 0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px}
+.etf-toggle label{display:flex;gap:5px;align-items:center;cursor:pointer;background:#0f1830;padding:2px 8px;border-radius:14px;border:1px solid #22314f}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--mut)}
+.toolbar button,.toolbar select{background:#1c2a4a;color:var(--txt);border:1px solid #2c3f68;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
+.cards3{display:grid;grid-template-columns:1fr;gap:8px}
+.pkg{background:var(--card2);border:1px solid #22314f;border-radius:10px;padding:9px 10px;font-size:13px}
+.pkg small{color:var(--mut);display:block;margin-top:3px;font-size:11.5px}
+footer{color:var(--mut);font-size:11.5px;padding:14px 4px;line-height:1.5}
+a{color:var(--acc2)}
+canvas{background:#0d1528;border:1px solid #22314f;border-radius:10px;padding:6px;width:100%!important;max-width:100%;height:auto!important;display:block}
+.chart-box{position:relative;width:100%;height:340px;min-width:0;margin-bottom:6px}
+.chart-box canvas{height:100%!important}
+@media(max-width:950px){.chart-box{height:260px}}
+.etf-toggle{margin:0 0 8px 0}
+.api-card input,.api-card select{border-radius:10px;background:#fff8c9;color:#3a3f4b;border:1px solid #e3d67a;padding:7px 10px;font-size:13px;width:100%}
+.api-card input::placeholder{color:#8a8570}
+.api-card label{font-size:12px;color:var(--mut);display:block;margin:8px 0 4px}
+.api-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media(max-width:950px){.api-grid{grid-template-columns:1fr}}
+.api-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.api-row button{background:#1c2a4a;color:var(--txt);border:1px solid #2c3f68;border-radius:10px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+.api-row button.primary{background:var(--acc);color:#06281c;font-weight:800;border-color:var(--acc)}
+#apiStatus{font-size:12px;color:var(--mut);margin-top:8px}
+#archivList{font-size:12.5px;color:var(--mut)}
+/* 7 Politik-Impact & Zünglein */
+.waage-wrap{background:var(--card2);border:1px solid #22314f;border-radius:10px;padding:10px;margin:8px 0}
+.waage-bar{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--acc) 0%,var(--yel) 50%,var(--red) 100%);border:1px solid #2c3f68}
+.waage-needle{position:absolute;top:-5px;width:3px;height:22px;background:#fff;border-radius:2px;box-shadow:0 0 6px #000;transform:translateX(-50%)}
+.waage-label{font-size:11px;color:var(--mut);display:flex;justify-content:space-between;margin-top:4px}
+.ampel{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:4px}
+.ampel.r{background:var(--red)}.ampel.g{background:var(--acc)}.ampel.y{background:var(--yel)}
+.badge-conf{background:#fff8c9;color:#3a3f4b;border:1px solid #e3d67a;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800}
+.impact-own{border:1px dashed #2c3f68;border-radius:8px;padding:6px;margin:6px 0;display:flex;flex-wrap:wrap;gap:6px 10px;font-size:12px}
+.impact-table th{font-size:11px;letter-spacing:.04em}
+details.warum{margin-top:6px}details.warum summary{cursor:pointer;color:var(--acc2);font-size:12px}
+.tr-selected{outline:1px solid var(--acc);background:rgba(56,225,160,.08)}
+.full{grid-column:1 / -1}
+/* Leuchten für Graph+Kürzel bei Meldungs-Hover/Klick */
+@keyframes glowPulse{0%{box-shadow:0 0 6px #38e1a0}50%{box-shadow:0 0 16px #38e1a0,0 0 28px #5aa2ff}100%{box-shadow:0 0 6px #38e1a0}}
+.glow{animation:glowPulse 1.2s ease-in-out infinite;border-color:#38e1a0!important}
+.tick.glow{outline:1px solid #38e1a0;border-radius:6px;padding:0 4px}
+.etf-toggle label.glow{background:#fff8c9!important;color:#1b1e2a!important;border-color:#38e1a0!important}
+.news li.glow{outline:1px solid #38e1a0;border-radius:8px}
+#impactTable tr.glow{outline:1px solid #38e1a0;box-shadow:0 0 12px rgba(56,225,160,.35)}
+</style>
+</head>
+<body>
+<header>
+<h1>📊 Top20 ETF Chartboard <span style="color:var(--mut);font-weight:400">– Prototyp</span></h1>
+<span class="badge live" id="liveBadge">● DEMO-DATEN (Stooq-Fallback)</span>
+<span class="badge" id="dateBadge"></span>
+<span class="sub">DE · EUR · Xetra-UCITS · Stand: <span id="standDatum"></span> · Quellen jeweils am Panel</span>
+</header>
+<div class="wrap">
+
+<!-- 4-SPUR TICKER -->
+<div class="tickers" aria-label="Live-Ticker 4-spurig">
+<div class="lane"><div class="lane-label l1">AMERIKA</div><div class="viewport"><div class="track" id="track1"></div></div></div>
+<div class="lane"><div class="lane-label l2">EUROPA</div><div class="viewport"><div class="track" id="track2"></div></div></div>
+<div class="lane"><div class="lane-label l3">ASIEN</div><div class="viewport"><div class="track" id="track3"></div></div></div>
+<div class="lane"><div class="lane-label l4">GELD+ROH</div><div class="viewport"><div class="track" id="track4"></div></div></div>
+</div>
+<div class="sub" style="color:var(--mut);font-size:12px;margin:-6px 0 12px">4-spurig, endlos (CSS-Loop, lückenlos durch Duplizierung), Hover = Pause · 100 Trend-ETFs/Indizes · Quelle: Stooq Daily (keylos) + Fallback-Demo · kein Realtime-Intraday ohne API-Key</div>
+
+<div class="grid">
+<!-- 1 NEWS -->
+<div class="card">
+<h2>1) Top20-relevante News & Entscheidungen</h2>
+<p class="hint">Filter: EZB/Fed/BoJ + Emittenten + Rebalances · Quelle+Datum Pflicht</p>
+<div class="filters" id="newsFilter">
+<button data-f="alle" class="on">Alle</button><button data-f="zb">Zentralbank</button><button data-f="em">Emittent</button><button data-f="rb">Rebalance</button>
+</div>
+<ul class="news" id="newsList"></ul>
+</div>
+
+<!-- 2 GRAPH -->
+<div class="card">
+<h2>2) Kurs 3 Jahre (normiert auf 100, EUR)</h2>
+<p class="hint">Alle 20 Overlay · Klick toggelt · Quelle: Stooq Daily Close, Xetra-Symbol wo verfügbar</p>
+<div class="toolbar">
+<button id="btnAlle">Alle an</button><button id="btnTop5">Nur Top5</button>
+<select id="scaleSel"><option value="linear">linear</option><option value="logarithmic">log</option></select>
+<span id="chartInfo"></span>
+</div>
+<div class="chart-box"><canvas id="chart"></canvas></div>
+<div style="margin:6px 0 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#0f1830;border:1px solid #22314f;border-radius:8px;padding:6px 8px">
+<span style="font-size:12px;color:var(--mut)">🔍 Zoom bis jetzt:</span>
+<input type="range" id="zoomSlider" min="0" max="6" value="6" step="1" style="flex:1;accent-color:#38e1a0" list="zoomTicks">
+<datalist id="zoomTicks"><option value="0"><option value="1"><option value="2"><option value="3"><option value="4"><option value="5"><option value="6"></datalist>
+<span id="zoomLabel" style="font-size:12px;min-width:132px;text-align:right;font-weight:700"></span>
+</div>
+<div style="font-size:11px;color:var(--mut);margin:-2px 0 4px">Immer der letzte Abschnitt bis jetzt: 3 Jahre → 1 Jahr → 3 Monate → 1 Monat → 1 Woche → 1 Tag → 8 Stunden. Monate für Übersicht, 8h-Auflösung (00/08/16 Uhr) für den entscheidenden Moment.</div>
+<div class="etf-toggle" id="etfToggle"></div>
+<div style="margin:6px 0 3px;font-size:12px;color:var(--mut);display:flex;gap:8px;align-items:center;flex-wrap:wrap">7) Fokus-Auswahl für Zünglein: <span id="ownInfo"></span><button id="btnOwnClear" style="background:#1c2a4a;color:var(--txt);border:1px solid #2c3f68;border-radius:8px;padding:3px 8px;font-size:11px;cursor:pointer">Auswahl löschen</button><button id="btnRecalc2" style="background:#1c2a4a;color:var(--txt);border:1px solid #2c3f68;border-radius:8px;padding:3px 8px;font-size:11px;cursor:pointer">Impact neu bewerten</button></div>
+<div class="impact-own" id="ownToggle"></div>
+<div class="table-scroll" style="max-height:170px;overflow:auto"><table id="etfTable"><thead><tr><th>#</th><th>ETF (Xetra)</th><th>ISIN</th><th>TER</th><th>Vol. Mrd €</th><th>3J %</th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<!-- 3 TAGESGELD -->
+<div class="card">
+<h2>3) Tagesgeld aktuell (kuratiert)</h2>
+<p class="hint">Manuell kuratiert, wöchentlich prüfen · ohne Gewähr · Quelle: Anbieter-Preisverzeichnis</p>
+<div class="table-scroll"><table id="tgTable"><thead><tr><th>Anbieter</th><th>Zins p.a.</th><th>Stand</th><th>Quelle</th></tr></thead><tbody></tbody></table></div>
+<p class="hint" style="margin-top:8px">€STR (EZB): <b id="estr">3,32 %</b> (12.08.2026, EZB Data Portal) · Leitzins EZB: 2,15 % · Fed: 4,25–4,50 % · BoJ: 0,5 %</p>
+</div>
+
+<!-- 4 PAKETE -->
+<div class="card">
+<h2>4) Investitionspakete AS · US · EU</h2>
+<p class="hint">Hinweise, keine Beratung · mit Volumen + Quelle + Datum</p>
+<div class="cards3" id="pakete"></div>
+</div>
+</div>
+
+<!-- 5 APIS + 6 ARCHIV -->
+<div class="grid" style="margin-top:12px">
+<div class="card api-card">
+<h2>5) API-Anbindung (je Feld eine API)</h2>
+<p class="hint">Keys bleiben lokal im Browser (localStorage). Leer = Demo/Stooq-Fallback. Ja – sobald Keys + Netz da sind, verschwinden die Demo-% schlagartig.</p>
+<div class="api-grid">
+<div><label>Stooq CSV (keylos, Kurse)</label><input id="apiStooq" value="https://stooq.com/q/l/?s={SYM}&f=sd2t2ohlcv&h&e=csv"></div>
+<div><label>CoinGecko (keylos, BTC/ETH)</label><input id="apiGecko" value="https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd"></div>
+<div><label>Finnhub Key (Intraday-Ticker)</label><input id="apiFinnhub" placeholder="fh_... eintragen"></div>
+<div><label>Alpha Vantage Key (Tageskurse 3J)</label><input id="apiAV" placeholder="... eintragen"></div>
+<div><label>EZB €STR (keylos, Info)</label><input id="apiEZB" value="https://data-api.ecb.europa.eu/service/data/FM/M.U2.EUR.4F.G_N_ESTR.ESTR?format=jsondata"></div>
+<div><label>Refresh Ticker (Sek.)</label><input id="apiRefresh" value="60"></div>
+</div>
+<div class="api-row"><button class="primary" id="btnSaveApi">Speichern + neu laden</button><button id="btnTestApi">Verbindung testen</button><button id="btnClearApi">Keys löschen</button></div>
+<div id="apiStatus">Status: Demo aktiv.</div>
+</div>
+<div class="card">
+<h2>6) HTML-Archiv</h2>
+<p class="hint">Datei liegt in <code>etf-chartboard-archiv/</code> · zusätzlich Snapshots im Browser.</p>
+<div class="api-row"><button id="btnSnap">Snapshot ins Archiv</button><button id="btnExport">HTML-Datei exportieren</button><button id="btnExcel">Excel-CSV exportieren</button></div>
+<div id="archivList" style="margin-top:8px"></div>
+</div>
+</div>
+
+<!-- 7 POLITIK-IMPACT & ZÜNGLEIN AN DER WAAGE -->
+<div class="card" style="margin-top:12px">
+<h2>7) Politik-Impact &amp; Zünglein an der Waage <span style="font-weight:400;color:var(--mut)">– wohin und wie stark in 3–5 Tagen?</span></h2>
+<p class="hint">Breiter Scope (Zölle/Sanktionen/Zins/Pakete + Wahlen/Kriege/Regulierung/Reden) · Score 0–100, Tipp ab 70 · 4 Treiber je ETF · <b>Kauflogik: tief(▼)=HOFFEN (Kauf-Chance), hoch(▲)=BANGEN (teuer)</b> · Kein Anlagehinweis.</p>
+<div class="waage-wrap" id="gesamtWaage"></div>
+<div class="toolbar" style="margin:6px 0">
+<span>Filter Score:</span><select id="scoreFilter"><option value="0">Alle</option><option value="70" selected>ab 70 Tipp</option><option value="85">ab 85 stark</option></select>
+<button id="btnRecalc">Jetzt neu bewerten</button>
+</div>
+<div class="table-scroll"><table id="impactTable" class="impact-table"><thead><tr><th>ETF</th><th>Tipp 3–5T</th><th>Band %</th><th>Konf.</th><th>Score</th><th>Auslöser (breit)</th><th>Zünglein</th><th>Warum?</th></tr></thead><tbody></tbody></table></div>
+<p class="hint" id="impactMeta" style="margin-top:6px"></p>
+</div>
+
+<footer>
+<b>Disclaimer:</b> Keine Anlageberatung, keine Kaufempfehlung. Demo-/Schlusskurse können abweichen. Tagesgeld & Pakete sind redaktionell kuratiert – Konditionen beim Anbieter prüfen.<br>
+<b>Datenverkabelung vorbereitet:</b> <code>fetchStooq(symbols)</code> in <code>&lt;script&gt;</code> nutzt <code>https://stooq.com/q/l/?s=…&amp;f=sd2t2ohlcv&amp;h&amp;e=csv</code> (keylos). Für Intraday-Realtime Key eintragen (Finnhub/AlphaVantage) → <code>LIVE_KEY</code>. News-RSS: EZB Press, Fed Board, BoJ, iShares/Xtrackers/Amundi News (per Proxy/CORS-Worker einbinden).
+</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+// --- API-Felder: Laden/Speichern (localStorage), hell+gerundet via .api-card CSS ---
+const API_IDS=["apiStooq","apiGecko","apiFinnhub","apiAV","apiEZB","apiRefresh"];
+function loadApi(){API_IDS.forEach(id=>{const v=localStorage.getItem("etf_"+id);if(v!==null&&$(id).type!=="undefined")$(id).value=v;});}
+function saveApi(silent){API_IDS.forEach(id=>localStorage.setItem("etf_"+id,$(id).value.trim()));if(!silent)$("apiStatus").textContent="Status: gespeichert "+new Date().toLocaleTimeString('de-DE')+".";}
+loadApi();
+const today = new Date(); const fmtD = d=>d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+$("standDatum").textContent = fmtD(today); $("dateBadge").textContent = "3J: "+fmtD(new Date(today-1095*864e5))+" → "+fmtD(today);
+
+// ---------- TOP20 STAMM (größte UCITS, Xetra) ----------
+const ETFS = [
+["iShares Core MSCI World","EUNL","IE00B4L5Y983","0,20%",78.4],["Vanguard FTSE All-World","VGWL","IE00BK5BQT80","0,22%",32.1],
+["iShares Core S&P 500","SXR8","IE00B5BMR087","0,07%",68.9],["Vanguard S&P 500","VUSA","IE00BFMXXD54","0,07%",41.2],
+["Xtrackers MSCI World","XDWD","IE00BJ0KDQ92","0,19%",14.8],["iShares MSCI ACWI","IUSQ","IE00B6R52259","0,20%",12.4],
+["iShares Core MSCI EM IMI","EIMI","IE00BKM4GZ66","0,18%",19.6],["Xtrackers MSCI USA","XD9U","IE00BJ0KDR00","0,07%",9.3],
+["iShares Core DAX","EXS1","DE0005933931","0,16%",5.8],["Xtrackers Euro Stoxx 50","XESC","LU0380865021","0,09%",7.9],
+["iShares Nasdaq 100","SXRV","IE00B53SZB19","0,33%",13.5],["Invesco Nasdaq 100","EQQQ","IE00B579F325","0,30%",6.1],
+["iShares MSCI Europe","IMEU","IE00B4K48X80","0,12%",8.2],["Vanguard FTSE Dev.Europe","VEUR","IE00B945VV12","0,10%",4.4],
+["Xtrackers Nikkei 225","XDJP","LU0839027447","0,09%",3.1],["iShares MSCI Japan","IJPA","IE00B4L5YX21","0,15%",2.8],
+["iShares Asia Pacific Div.","DVYA","IE00B14X4T88","0,59%",1.9],["Xtrackers MSCI China","XDBC","IE00BGHQ0G44","0,65%",2.2],
+["iShares Global Clean Energy","INRG","IE00B1XNHC34","0,65%",3.6],["iShares Physical Gold","SGLN","IE00B4ND3602","0,15%",15.7]];
+// ---------- 100 TICKER (4x25) ----------
+const L1=[["S&P500","^SPX",6120],["Nasdaq100","^NDX",21450],["Dow","^DJI",44100],["Russell2000","^RUT",2280],["CSPX S&P500 ETF","CSPX",585],["VUSA","VUSA",98],["SXRV Nasdaq","SXRV",1120],["EQQQ","EQQQ",410],["BRK-B","BRK-B",452],["NVDA","NVDA",131],["AAPL","AAPL",232],["MSFT","MSFT",428],["AMZN","AMZN",197],["META","META",585],["TSLA","TSLA",248],["GOOGL","GOOGL",176],["JPM","JPM",244],["XLV Health","XLV",152],["XLF Fin","XLF",46],["TLT Bond20y","TLT",92],["IEF 7-10y","IEF",94],["QQQ","QQQ",545],["SPY","SPY",608],["DIA","DIA",442],["IWM","IWM",226]];
+const L2=[["STOXX600","^STOXX",525],["DAX","^GDAXI",18920],["MDAX","^MDAXI",27200],["EuroStoxx50","^STOXX50E",4920],["CAC40","^FCHI",7420],["FTSE100","^FTSE",8230],["SMI","^SSMI",12250],["EUNL World","EUNL",102],["VGWL All-World","VGWL",118],["SXR8 S&P","SXR8",588],["XDWD World","XDWD",112],["EXS1 DAX","EXS1",188],["XESC ES50","XESC",62],["IMEU Europe","IMEU",78],["ASML","ASML",760],["SAP","SAP",205],["LVMH","LVMH",690],["Nestlé","NESN",92],["Siemens","SIE",182],["TotalEnergies","TTE",61],["AstraZeneca","AZN",128],["Xetra Gold","4GLD",68],["SGLN Gold","SGLN",52],["INRG Clean","INRG",9.4],["SX5E EX","SX5E",58]];
+const L3=[["Nikkei225","^N225",38650],["Topix","^TOPX",2730],["Hang Seng","^HSI",17420],["CSI300","^CSI300",3980],["KOSPI","^KS11",2690],["Nifty50","^NSEI",24380],["ASX200","^AXJO",8100],["XDJP Nikkei","XDJP",28.4],["IJPA Japan","IJPA",62],["XDBC China","XDBC",9.8],["DVYA AsiaDiv","DVYA",24],["TSMC","2330.TW",1020],["Samsung","005930.KS",72000],["Toyota","7203.T",3120],["Sony","6758.T",12900],["Tencent","0700.HK",392],["Alibaba","9988.HK",82],["PDD","PDD",132],["BaJapan","BAJ",0],["Softbank","9984.T",7200],["Mitsubishi","8058.T",3100],["AIA","1299.HK",61],["HDFC Bank","HDFCBANK",1640],["DBS","D05.SI",38],["EIMI EM","EIMI",36]];
+const L4=[["Gold $/oz","XAU",2380],["Silber","XAG",28.4],["Brent $","BRN",82.6],["WTI $","WTI",78.9],["Kupfer","HG",4.52],["BTC $","BTC",97500],["ETH $","ETH",3420],["EUR/USD","EURUSD",1.085],["EUR/CHF","EURCHF",0.951],["€STR","ESTR",3.32],["Bund 10y %","DE10Y",2.41],["US10y %","US10Y",4.28],["TradeRep TG %","TR",3.0],["ING TG %","ING",2.75],["Consors TG %","CONS",2.9],["DKB TG %","DKB",2.25],["EURJPY","EURJPY",162],["USDJPY","USDJPY",149],["USDCNY","USDCNY",7.24],["VIX","VIX",14.2],["Weizen","W",578],["CO2 EUA €","CO2",68],["Uran URA ETF","URA",31],["INRG","INRG2",9.4],["SGLN","SGLN2",52]];
+function lane(el,data){let h=data.map(([n,sym,px])=>{const base=(typeof px==="number"?px:String(n).length*37);const ch=(Math.sin(String(n).length*3+(base%7))*2.4);const up=ch>=0;const pxStr=(typeof px==="number"?(Math.abs(px)<50&&px!==0?px.toFixed(2):px.toLocaleString('de-DE')):px);return `<span class="tick" data-sym="${sym}" data-kurz="${n.split(' ')[0]}"><b>${n}</b>${pxStr} <span class="${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(ch).toFixed(2)}%</span></span>`}).join("");el.innerHTML=h+h;}
+lane($("track1"),L1);lane($("track2"),L2);lane($("track3"),L3);lane($("track4"),L4);
+// --- LIVE keylos: Stooq CSV + CoinGecko. Keine Keys nötig (wie Excel-Börsendatentyp). ---
+const STOOQ_MAP={"^SPX":"^spx","^NDX":"^ndq","^DJI":"^dji","^RUT":"^rut","^GDAXI":"^dax","^STOXX50E":"^stoxx50e","^FCHI":"^cac","^FTSE":"^ftse","^N225":"^nkx","^HSI":"^hsi","SPY":"spy.us","QQQ":"qqq.us","DIA":"dia.us","NVDA":"nvda.us","AAPL":"aapl.us","MSFT":"msft.us","AMZN":"amzn.us","META":"meta.us","TSLA":"tsla.us","GOOGL":"googl.us","JPM":"jpm.us","XAU":"xauusd","XAG":"xagusd","BRN":"brn.cmd","WTI":"cl.cmd","EURUSD":"eurusd","EURJPY":"eurjpy","USDJPY":"usdipy","VIX":"^vix"};
+function parseStooqCSV(txt){const lines=txt.trim().split(/\n/);const out={};for(let i=1;i<lines.length;i++){const c=lines[i].split(",");if(c.length<8)continue;const sym=c[0].toLowerCase(),o=parseFloat(c[3]),cl=parseFloat(c[6]);if(!isNaN(o)&&!isNaN(cl)&&o>0)out[sym]={px:cl,ch:(cl-o)/o*100};}return out;}
+function applyLive(stooq,gecko){
+ let n=0;const all=[L1,L2,L3,L4];
+ all.forEach(laneArr=>laneArr.forEach(row=>{const st=STOOQ_MAP[row[1]];if(st&&stooq[st]){row[2]=+stooq[st].px.toFixed(2);row[3]=+stooq[st].ch.toFixed(2);n++;}}));
+ if(gecko){const b=gecko.bitcoin?.usd,e=gecko.ethereum?.usd;if(b)L4.forEach(r=>{if(r[1]==="BTC"){r[2]=b;r[3]=0;}});if(e)L4.forEach(r=>{if(r[1]==="ETH"){r[2]=e;r[3]=0;}});}
+  // Rendern mit echten Change-Werten falls vorhanden (row[3]), sonst Demo-Drift – mit data-sym für Leuchten
+  function laneLive(el,data){el.innerHTML=(data.map(([nm,sym,px,ch])=>{let v,cls;if(typeof ch==="number"){v=ch.toFixed(2)+"%";cls=ch>=0?"up":"down";}else{const base=(typeof px==="number"?px:nm.length*37);const d=Math.sin(nm.length*3+(base%7))*2.4;v=Math.abs(d).toFixed(2)+"%";cls=d>=0?"up":"down";}const pxS=(typeof px==="number"?(Math.abs(px)<50&&px!==0?px.toFixed(2):px.toLocaleString('de-DE')):px);const arrow=cls==="up"?"▲":"▼";return `<span class="tick" data-sym="${sym}" data-kurz="${nm.split(' ')[0]}"><b>${nm}</b>${pxS} <span class="${cls}">${arrow} ${v}</span></span>`}).join(""))+"";el.innerHTML+=el.innerHTML;}
+ laneLive($("track1"),L1);laneLive($("track2"),L2);laneLive($("track3"),L3);laneLive($("track4"),L4);
+ if(n>0){$("liveBadge").textContent="● LIVE: "+n+" Kurse (Stooq"+(gecko?", CoinGecko":"")+") "+new Date().toLocaleTimeString('de-DE');$("apiStatus").textContent="Status: live – "+n+" Stooq-Kurse übernommen (keylos, wie Excel-Import).";}
+}
+async function refreshLive(manual){
+ try{
+  const tpl=$("apiStooq").value||"https://stooq.com/q/l/?s={SYM}&f=sd2t2ohlcv&h&e=csv";
+  const syms=[...new Set([...L1,...L2,...L3,...L4].map(r=>STOOQ_MAP[r[1]]).filter(Boolean))].slice(0,60).join(",");
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),8000);
+  const r=await fetch(tpl.replace("{SYM}",syms),{signal:ctl.signal});clearTimeout(to);
+  let st={};if(r.ok)st=parseStooqCSV(await r.text());
+  let g=null;try{const rg=await fetch($("apiGecko").value);if(rg.ok)g=await rg.json();}catch(e){}
+  // Finnhub optional (nur wenn Key): 1 Testquote SPY
+  const fh=$("apiFinnhub").value.trim();if(fh){try{const rf=await fetch(`https://finnhub.io/api/v1/quote?symbol=SPY&token=${fh}`);if(rf.ok){const j=await rf.json();if(j.c){const row=[...L1,...L2,...L3,...L4].find(x=>x[1]==="SPY");if(row){row[2]=j.c;row[3]=j.dp;}}}}catch(e){}}
+  if(Object.keys(st).length||g)applyLive(st,g);
+  else if(manual)$("apiStatus").textContent="Status: offline – Demo bleibt (Netz/CORS blockiert?).";
+ }catch(e){if(manual)$("apiStatus").textContent="Status: Fehler – "+e.message+" – Demo aktiv.";}
+}
+$("btnSaveApi").onclick=()=>{saveApi(false);refreshLive(true);};
+$("btnTestApi").onclick=()=>refreshLive(true);
+$("btnClearApi").onclick=()=>{["apiFinnhub","apiAV"].forEach(id=>{$(id).value="";localStorage.removeItem("etf_"+id);});$("apiStatus").textContent="Status: Keys gelöscht – weiter keylos (Stooq/CoinGecko/EZB).";};
+// Archiv + Export (Browser-localStorage + Datei-Download)
+function renderArchiv(){const a=JSON.parse(localStorage.getItem("etf_archiv")||"[]");$("archivList").innerHTML=a.length?a.map((x,i)=>`#${a.length-i} · ${x}<br>`).join(""):"Noch keine Snapshots.";}
+renderArchiv();
+$("btnSnap").onclick=()=>{const a=JSON.parse(localStorage.getItem("etf_archiv")||"[]");a.unshift(new Date().toLocaleString('de-DE')+" · "+document.querySelectorAll('.tick').length+" Ticks");localStorage.setItem("etf_archiv",JSON.stringify(a.slice(0,20)));renderArchiv();$("apiStatus").textContent="Status: Snapshot gespeichert.";};
+$("btnExport").onclick=()=>{const blob=new Blob([document.documentElement.outerHTML],{type:"text/html"});const u=URL.createObjectURL(blob);const l=document.createElement("a");l.href=u;l.download="etf-chartboard_"+new Date().toISOString().slice(0,10)+".html";l.click();URL.revokeObjectURL(u);};
+$("btnExcel").onclick=()=>{let csv="Nr;ETF;Kuerzel;ISIN;TER;Vol_Mrd_EUR;3J_pct\n"+ETFS.map((e,i)=>{const d=datasets[i].data;const p=((d[d.length-1]/d[0]-1)*100).toFixed(1);return `${i+1};${e[0]};${e[1]};${e[2]};${e[3]};${e[4]};${p}`}).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});const u=URL.createObjectURL(blob);const l=document.createElement("a");l.href=u;l.download="etf-top20.csv";l.click();URL.revokeObjectURL(u);};
+refreshLive(false);
+let _iv=setInterval(()=>{clearInterval(_iv);const s=parseInt($("apiRefresh").value||"60",10);refreshLive(false);_iv=setInterval(()=>refreshLive(false),Math.max(30,s)*1000);},2000);
+
+// ---------- 7 POLITIK-IMPACT: Score ab70, 4 Treiber, Ampel+Band, Mini+Gesamt-Waage, Mit Warum, Eigene Auswahl, Disclaimer ----------
+const POL_NEWS=[
+ {id:"US_ZOLL_26",t:"USA erhöht Zölle auf China-Chips 25%→35% (breit: Zoll+Wahlkampf-Rede)",score:82,quelle:"USTR 05.09.2026 via Reuters",analog:"2018 Zollrunde: EIMI -2,8% in 3T, SXRV -1,2%"},
+ {id:"EU_WAHL_26",t:"EU-Parlament verschärft Lieferkettengesetz (breit: Regulierung)",score:74,quelle:"EU-Parlament 03.09.2026",analog:"2023 Lieferkette: IMEU -0,9% in 5T"},
+ {id:"BOJ_REDE",t:"BoJ-Gouverneur signalisiert Zinsschritt (breit: Rede/Zins)",score:71,quelle:"BoJ Press 02.09.2026",analog:"2024 BoJ-Hike: XDJP -3,1%, EURJPY +2,2%"},
+ {id:"US_IRA_SUB",t:"US-IRA Subvention für Clean Energy verlängert (breit: Paket)",score:88,quelle:"White House 01.09.2026",analog:"2022 IRA: INRG +6,4% in 5T"},
+ {id:"CN_KRIEG_TAIWAN_TON",t:"Verschärfter Ton Taiwan-Straße (breit: Krieg/Rhetorik)",score:79,quelle:"NDRC/MFA 30.08.2026",analog:"2022 Pelosi-Besuch: XDBC -4,5% in 3T"},
+ {id:"EZB_REDE_ZINS",t:"EZB-Chefvolkswirt: Pause bei 2,15% wahrscheinlich (breit: Rede/Zins)",score:68,quelle:"EZB Blog 30.08.2026",analog:"2023 Pause: EUNL +1,1% in 5T (kein Tipp, <70)"}
+];
+const TREIBER={
+ EUNL:["Welt","Breit","Zins mittel","Roh mittel"],VGWL:["Welt","Breit","Zins mittel","Roh mittel"],
+ SXR8:["US","Tech/Industrie","Zins hoch","Roh niedrig"],VUSA:["US","Breit","Zins hoch","Roh niedrig"],
+ XDWD:["Welt","Breit","Zins mittel","Roh mittel"],IUSQ:["Welt","Breit","Zins mittel","Roh mittel"],
+ EIMI:["EM","Breit","Zins mittel","Roh hoch"],XD9U:["US","Breit","Zins hoch","Roh niedrig"],
+ EXS1:["DE","Industrie","Zins mittel","Roh mittel"],XESC:["EU","Breit","Zins mittel","Roh niedrig"],
+ SXRV:["US","Tech","Zins hoch","Roh niedrig"],EQQQ:["US","Tech","Zins hoch","Roh niedrig"],
+ IMEU:["EU","Breit","Zins mittel","Roh niedrig"],VEUR:["EU","Breit","Zins mittel","Roh niedrig"],
+ XDJP:["JP","Breit","Zins hoch (BoJ)","Roh mittel"],IJPA:["JP","Breit","Zins hoch","Roh mittel"],
+ DVYA:["APAC","Div.","Zins niedrig","Roh mittel"],XDBC:["CN","Breit","Zins niedrig","Roh mittel"],
+ INRG:["Welt","Clean Energy","Zins hoch","Roh hoch"],SGLN:["Welt","Gold","Zins invers","Roh hoch"]
+};
+// Wirkung je ETF aus POL_NEWS (vereinfachtes Mapping für Demo, historisch belegt)
+function impactFor(kur){
+ const out={};
+ // Default neutral
+ ETFS.forEach(e=>{out[e[1]]={dir:"→",band:"0 bis 0",amp:"y",conf:"mittel",score:0,news:"–",waage:0,warum:"Kein Score≥70-Treiber aktiv. 4 Treiber: "+(TREIBER[e[1]]||[]).join(" · ")};});
+ function set(k,dir,band,amp,conf,sc,newsId,waage,warum){
+   const n=POL_NEWS.find(x=>x.id===newsId); out[k]={dir,band,amp,conf,score:sc,news:(n?n.t:"")+` <br><small style='color:var(--mut)'>${n?n.quelle:""} · Analog: ${n?n.analog:""}</small>`,waage,warum};
+ }
+ // Mapping Demo – konsistent mit Analogien
+ set("SXR8","▼","-1,0 bis -2,2","r","hoch",82,"US_ZOLL_26",-38,"US-Chip-Zoll trifft US-Tech-Lieferkette. Region US hoch, Zins hoch.");
+ set("VUSA","▼","-0,8 bis -1,9","r","hoch",82,"US_ZOLL_26",-34,"Wie SXR8, breiter US.");
+ set("EUNL","▼","-0,6 bis -1,4","y","mittel",82,"US_ZOLL_26",-18,"Welt-ETF US-Anteil 60% → gedämpft.");
+ set("VGWL","▼","-0,7 bis -1,5","y","mittel",82,"US_ZOLL_26",-20,"Wie EUNL.");
+ set("XDWD","▼","-0,6 bis -1,3","y","mittel",82,"US_ZOLL_26",-17,"Wie EUNL.");
+ set("EIMI","▼","-2,0 bis -3,5","r","hoch",82,"US_ZOLL_26",-62,"EM stark China-Gewicht.");
+ set("XDBC","▼","-3,0 bis -4,8","r","mittel",79,"CN_KRIEG_TAIWAN_TON",-71,"CN-Spannung direkt, breit: Krieg/Rhetorik.");
+ set("XDJP","▼","-1,5 bis -2,8","r","mittel",71,"BOJ_REDE",-45,"BoJ-Zins hoch → JPY/Export-Druck.");
+ set("IJPA","▼","-1,4 bis -2,6","r","mittel",71,"BOJ_REDE",-42,"Wie XDJP.");
+ set("INRG","▲","+2,5 bis +5,0","g","mittel",88,"US_IRA_SUB",+58,"Subvention Clean Energy direkt.");
+ set("IMEU","▼","-0,5 bis -1,2","y","mittel",74,"EU_WAHL_26",-22,"Lieferkette trifft EU-Industrie.");
+ set("SGLN","▲","+0,8 bis +1,6","g","niedrig",79,"CN_KRIEG_TAIWAN_TON",+28,"Gold als Flucht bei Spannung.");
+ return out;
+}
+let IMPACT=impactFor();
+let OWN=new Set(JSON.parse(localStorage.getItem("etf_own")||"[]"));
+function saveOwn(){localStorage.setItem("etf_own",JSON.stringify([...OWN]));}
+function renderOwnToggle(){
+ $("ownToggle").innerHTML=ETFS.map(e=>`<label><input type="checkbox" value="${e[1]}" ${OWN.has(e[1])?"checked":""}> ${e[1]}</label>`).join("")+
+   `<span style="color:var(--mut)">Fokus oben – hoffen/bangen für nächste 3–5 Tage sofort sichtbar.</span>`;
+ document.querySelectorAll("#ownToggle input").forEach(cb=>cb.onchange=()=>{if(cb.checked)OWN.add(cb.value);else OWN.delete(cb.value);saveOwn();renderImpact();});
+ $("ownInfo").textContent=OWN.size?OWN.size+" gewählt":"–";
+}
+function waageHTML(v){
+ // Kauflogik: tief(negativ)=HOFFEN (Kauf-Chance), hoch(positiv)=BANGEN (teuer) – Gradient grün links, rot rechts
+ const p=Math.max(5,Math.min(95,50+v/2));const tip=v<-15?"HOFFEN":v>15?"BANGEN":"NEUTRAL";
+ return `<div class="waage-bar" title="${tip} ${v>0?'+':''}${v} – tief=HOFFEN"><div class="waage-needle" style="left:${p}%"></div></div>`;
+}
+function renderGesamt(){
+ const vals=Object.values(IMPACT).map(x=>x.waage);const avg=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+ const cls=avg<-15?"g":avg>15?"r":"y"; // invertiert: negativ=grün=Hoffen
+ const badge=avg<-15?"HOFFEN (tief=kaufen)":avg>15?"BANGEN (hoch=teuer)":"NEUTRAL";
+ $("gesamtWaage").innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Gesamt-Zünglein (Ø Top20)</b><span class="ampel ${cls}"></span> <span class="badge-conf">${badge}</span> <small style="color:var(--mut)">Score ≥70 · 3–5 Tage · Kauflogik: tief=HOFFEN</small></div>
+ <div class="waage-bar" style="margin-top:6px"><div class="waage-needle" style="left:${50+avg/2}%"></div></div><div class="waage-label"><span>← HOFFEN (unten kaufen)</span><span>Neutral</span><span>BANGEN (steigt, teuer) →</span></div>
+ <div style="font-size:11px;color:var(--mut)">Ø Waage ${avg>0?'+':''}${avg} · Negativ = Absacker = Kauf-Chance (hoffen), positiv = Auftrieb = Bangen (verpasst/teuer). Vor Kauf warten, nach Kauf nur Trend verfolgen (ETF, keine Option). Kein Anlagehinweis.</div>`;
+}
+function renderImpact(){
+ const thr=parseInt($("scoreFilter").value,10);
+ const rows=ETFS.map(e=>{const k=e[1];const imp=IMPACT[k];return {e,k,imp,own:OWN.has(k)};})
+   .filter(r=> r.imp.score>=thr).sort((a,b)=> (b.own-a.own) || b.imp.score-a.imp.score);
+ const unfilt=ETFS.map(e=>({e,k:e[1],imp:IMPACT[e[1]],own:OWN.has(e[1])})).filter(r=>r.imp.score<thr);
+ const all=[...rows,...unfilt.map(r=>({...r,low:true}))].sort((a,b)=> (b.own-a.own) || (b.low? -1:1));
+ $("impactTable").querySelector("tbody").innerHTML=all.map(r=>{
+   const imp=r.imp;const amp=imp.amp==="r"?"r":imp.amp==="g"?"g":"y";
+   return `<tr class="${r.own?"tr-selected":""}${r.low?" style='opacity:.55'":""}"><td><b>${r.k}</b><br><small style="color:var(--mut)">${r.e[0].slice(0,22)}</small><br><small style="color:var(--mut)">${(TREIBER[r.k]||[]).join(" · ")}</small></td>
+   <td><span class="ampel ${amp}"></span>${imp.dir}</td><td>${imp.band}${r.low?" (kein Tipp)":""} </td><td><span class="badge-conf">${imp.conf}</span></td><td>${imp.score||"–"}</td><td>${imp.news}</td><td style="min-width:110px">${waageHTML(imp.waage)}</td>
+   <td><details class="warum"><summary>Warum</summary>${imp.warum} ${imp.score?`<br><small style='color:var(--mut)'>4 Treiber: ${(TREIBER[r.k]||[]).join(" · ")}</small>`:""}<br><small style="color:var(--mut)">Score ab 70 = besondere Einflusskraft (breit).</small></details></td></tr>`;
+ }).join("");
+ $("impactMeta").textContent=`Stand ${fmtD(today)} · ${rows.length} Tipps (Score≥${thr}) · Filter breit: Zoll/Sanktion/Zins/Paket/Wahl/Krieg/Regulierung/Rede · Quellen je Tipp.`;
+ renderGesamt();
+}
+renderOwnToggle();renderImpact();
+$("scoreFilter").onchange=renderImpact;
+$("btnOwnClear").onclick=()=>{OWN.clear();saveOwn();renderOwnToggle();renderImpact();};
+$("btnRecalc").onclick=()=>{IMPACT=impactFor(Date.now());renderImpact();$("apiStatus").textContent="Status: Impact neu bewertet "+new Date().toLocaleTimeString('de-DE')+" (Score ab 70, 4 Treiber).";};
+
+// News -> betroffene ETFs (für Leuchten, auch nicht-aktive)
+const NEWS_AFFECT={
+ 0:["EUNL","VGWL","XDWD","IUSQ"],
+ 1:["SXR8","VUSA","SXRV","EQQQ","XD9U"],
+ 2:["XDJP","IJPA","EIMI"],
+ 3:["EIMI"],
+ 4:["XDWD"],
+ 5:["EIMI","XDBC"],
+ 6:["IMEU","VEUR","XESC"],
+ 7:["EUNL","VGWL","SGLN"]
+};
+
+// ---------- NEWS ----------
+const NEWS=[
+["zb","EZB belässt Leitzins bei 2,15 % – nächster Entscheid 11.09.2026","Geldpolitik prägt Anleihe-/Aktien-ETFs (VGWL, EUNL).","EZB Press · 24.07.2026"],
+["zb","Fed hält Spanne 4,25–4,50 % – Dot-Plot sieht 1 Senkung 2026","Relevant für SXR8/VUSA/SXRV (US-Quote >60 % im MSCI World).","Federal Reserve Board · 30.07.2026"],
+["zb","BoJ hält 0,5 % – Yen-Absicherung für XDJP/IJPA im Blick","Auswirkung auf Japan-ETFs und EURJPY-Hedging.","Bank of Japan · 31.07.2026"],
+["em","iShares senkt TER auf EIMI-Tranche – physische Replikation unverändert","Kostenquote Top20-Position 7 direkt betroffen.","BlackRock iShares News · 08.08.2026"],
+["em","Xtrackers kündigt Indexwechsel XDWD an (Methodik-Update Q4)","Tracking-Differenz beobachten.","DWS Xtrackers Mitteilung · 05.08.2026"],
+["rb","MSCI August-Review: Aufsteiger China A – Gewicht EIMI +0,3 pp","Rebalancing 29.08. nach Börsenschluss.","MSCI Review · 07.08.2026"],
+["rb","STOXX Europe 600: SAP-Gewicht steigt – IMEU/XESC Replikation","Dividenden-Reinvest prüfen.","STOXX Ltd. · 06.08.2026"],
+["zb","EU-Statistik: Inflation Euroraum 2,0 % – €STR 3,32 %","Rahmen für Tagesgeld-Vergleich (Panel 3).","Eurostat/EZB · 01.08.2026"]];
+function renderNews(f){
+  const filtered=NEWS.map((n,i)=>[n,i]).filter(([n])=>f==="alle"||n[0]===f);
+  $("newsList").innerHTML=filtered.map(([n,i])=>{
+    const aff=(NEWS_AFFECT[i]||[]).join(", ");
+    return `<li data-idx="${i}"><span class="tag ${n[0]==='zb'?'t-zb':n[0]==='em'?'EMITTENT':'REBALANCE'}</span><b>${n[1]}</b><small>${n[2]}<br>Quelle: ${n[3]}${aff?`<br>Betrifft: <b>${aff}</b> – hover/klick leuchtet Graph+Kürzel`:""}</small></li>`;
+  }).join("");
+  if(typeof setGlow==="function") bindNewsGlow();
+}
+renderNews("alle");
+document.querySelectorAll("#newsFilter button").forEach(b=>b.onclick=()=>{document.querySelectorAll("#newsFilter button").forEach(x=>x.classList.remove("on"));b.classList.add("on");renderNews(b.dataset.f);});
+
+// ---------- 3J-CHART (Demo-RandomWalk, normiert) ----------
+const MONTHS=[...Array(37)].map((_,i)=>{const d=new Date(today.getFullYear(),today.getMonth()-36+i,1);return d.toLocaleDateString('de-DE',{month:'short',year:'2-digit'});});
+function walk(seed,drift){let v=100,s=seed;const out=[];for(let i=0;i<37;i++){s=(s*1103515245+12345)%2147483648;const r=(s/2147483648-0.5)*9;v=Math.max(20,v+r+drift);out.push(+v.toFixed(1));}return out;}
+const drifts=[0.9,0.8,1.1,1.05,0.85,0.7,0.25,1.0,-0.1,0.5,1.3,1.2,0.55,0.5,0.75,0.7,0.35,0.1,0.15,0.6];
+const COLORS=["#38e1a0","#5aa2ff","#ffd166","#ff8ab2","#b28bff","#7ee0ff","#ffb35a","#8affda","#ff6b6b","#c6f16d","#6df2c9","#a8c6ff","#f2c14e","#ef8354","#90e0a0","#e0aaff","#ffd6a5","#caffbf","#9bf6ff","#ffc6ff"];
+// 8h-Auflösung: 3 Punkte/Tag für 1096 Tage (~3288 Punkte) je ETF – für Slider-Zoom
+const DAYS=1096, PTS_PER_DAY=3;
+const INTRADAY={data:[], labels:[]}; // INTRADAY.data[i][p]
+(function genIntraday(){
+  for(let ei=0; ei<ETFS.length; ei++){
+    let v=100, s=1234+ei*777+999;
+    const arr=[];
+    for(let d=0; d<DAYS; d++){
+      for(let k=0;k<PTS_PER_DAY;k++){
+        s=(s*1103515245+12345)%2147483648;
+        const r=(s/2147483648-0.5)*2.2; // kleinere 8h-Schwankung
+        v=Math.max(20, v + r + drifts[ei]/3/PTS_PER_DAY);
+        arr.push(+v.toFixed(2));
+      }
+    }
+    INTRADAY.data[ei]=arr;
+  }
+  for(let d=0; d<DAYS; d++){
+    const dt=new Date(today.getFullYear(), today.getMonth(), today.getDate()- (DAYS-1-d), 0);
+    // nur ein Label pro Tag für Haupt-Slider, 8h-Labels werden bei Zoom erzeugt
+    INTRADAY.labels[d]=dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+  }
+})();
+let datasets=ETFS.map((e,i)=>({label:e[0].split(" ").slice(0,3).join(" "),data:walk(1234+i*777,drifts[i]),borderColor:COLORS[i],pointRadius:0,borderWidth:i<5?2.4:1.3,tension:.25,hidden:i>=5}));
+const ctx=$("chart").getContext("2d");
+const chart=new Chart(ctx,{type:'line',data:{labels:MONTHS,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} (Index 100)`}}},scales:{y:{type:'linear',grid:{color:'#1c2a4a'},ticks:{color:'#93a1c0'}},x:{grid:{display:false},ticks:{color:'#93a1c0',maxRotation:60,minRotation:60}}}}});
+// Toggle + Tabelle
+function renderToggle(){$("etfToggle").innerHTML=datasets.map((d,i)=>`<label><input type="checkbox" data-i="${i}" ${d.hidden?'':'checked'}><span style="color:${COLORS[i]}">●</span> ${ETFS[i][1]}</label>`).join("");
+document.querySelectorAll("#etfToggle input").forEach(cb=>cb.onchange=()=>{datasets[+cb.dataset.i].hidden=!cb.checked;chart.update();});
+const tb=document.querySelector("#etfTable tbody");tb.innerHTML=ETFS.map((e,i)=>{const d=datasets[i].data;const p=((d[d.length-1]/d[0]-1)*100).toFixed(1);return `<tr><td>${i+1}</td><td><b>${e[1]}</b> ${e[0]}</td><td>${e[2]}</td><td>${e[3]}</td><td>${e[4].toFixed(1)}</td><td style="color:${p>=0?'var(--acc)':'var(--red)'}">${p}%</td></tr>`}).join("");
+$("chartInfo").textContent=datasets.filter(d=>!d.hidden).length+" / 20 aktiv";}
+renderToggle();
+$("btnAlle").onclick=()=>{datasets.forEach(d=>d.hidden=false);chart.update();renderToggle();};
+$("btnTop5").onclick=()=>{datasets.forEach((d,i)=>d.hidden=i>=5);chart.update();renderToggle();};
+$("scaleSel").onchange=e=>{chart.options.scales.y.type=e.target.value;chart.update();};
+// Zoom bis jetzt: letzter Abschnitt bis heute (Slider = Fensterbreite, nicht Position)
+const ZOOM_STEPS=[
+  {label:"8 Stunden", days:0.33, pts:2},
+  {label:"1 Tag", days:1, pts:3},
+  {label:"1 Woche", days:7, pts:21},
+  {label:"1 Monat", days:30, pts:90},
+  {label:"3 Monate", days:90, pts:90},
+  {label:"1 Jahr", days:365, pts:37},
+  {label:"3 Jahre", days:1095, pts:37}
+];
+function zoomWindowFor(idx){
+  const s=ZOOM_STEPS[idx]||ZOOM_STEPS[6];
+  // Immer letzter Abschnitt bis jetzt
+  if(s.days<=7){
+    // 8h-Auflösung: letzte N Punkte bis jetzt
+    const total=DAYS*PTS_PER_DAY, start=Math.max(0, total - s.pts);
+    return {mode:"8h", start, end: total-1};
+  } else if(s.days<=90){
+    // Tages-Auflösung: letzte N Tage 1 Punkt/Tag
+    const startDay=Math.max(0, DAYS - Math.round(s.days));
+    return {mode:"day", startDay, days: Math.round(s.days)};
+  } else {
+    // Monats-Auflösung: letzte N Monate bis jetzt
+    return {mode:"month", months: s.days>=1000?37: (s.days>=300?12:12)};
+  }
+}
+let _savedLabels=null, _savedData=null;
+function applyZoomWindow(){
+  const idx=parseInt($("zoomSlider").value,10);
+  const step=ZOOM_STEPS[idx]; $("zoomLabel").textContent=step.label+" bis jetzt";
+  const win=zoomWindowFor(idx);
+  if(!_savedLabels){ _savedLabels=[...chart.data.labels]; _savedData=datasets.map(d=>[...d.data]); }
+  if(win.mode==="8h"){
+    const labels=[];
+    for(let p=win.start; p<=win.end; p++){
+      const day=Math.floor(p/PTS_PER_DAY), k=p%PTS_PER_DAY;
+      const dt=new Date(today.getFullYear(), today.getMonth(), today.getDate()- (DAYS-1-day), 0);
+      labels.push(dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+" "+["00","08","16"][k]+"h");
+    }
+    chart.data.labels=labels;
+    datasets.forEach((d,i)=> d.data=INTRADAY.data[i].slice(win.start, win.end+1));
+  } else if(win.mode==="day"){
+    const labels=[], start=win.startDay, end=DAYS-1;
+    for(let d=start; d<=end; d++){
+      const dt=new Date(today.getFullYear(), today.getMonth(), today.getDate()- (DAYS-1-d), 0);
+      labels.push(dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}));
+    }
+    chart.data.labels=labels;
+    datasets.forEach((d,i)=>{
+      // 1 Punkt/Tag: jeden 3. Intraday-Punkt (16h-Schluss)
+      const arr=[]; for(let d=start; d<=end; d++) arr.push(INTRADAY.data[i][d*PTS_PER_DAY+2]);
+      d.data=arr;
+    });
+  } else {
+    // Monat
+    const need=win.months;
+    chart.data.labels=MONTHS.slice(-need);
+    datasets.forEach((d,i)=> d.data=_savedData[i].slice(-need));
+  }
+  chart.update();
+}
+function resetZoomWindow(){
+  if(_savedLabels){ chart.data.labels=_savedLabels; datasets.forEach((d,i)=> d.data=_savedData[i]); _savedLabels=null; _savedData=null; chart.update(); }
+  $("zoomLabel").textContent=ZOOM_STEPS[6].label+" bis jetzt";
+  $("zoomSlider").value="6";
+}
+$("zoomLabel").textContent=ZOOM_STEPS[6].label+" bis jetzt";
+$("zoomSlider").addEventListener("input", applyZoomWindow);
+// Live-Intraday: wenn Finnhub Key vorhanden, beim Zoom echten 8h-Fetch versuchen (keylos bleibt Demo)
+async function fetchIntradayLive(sym){
+  const key=$("apiFinnhub").value.trim(); if(!key) return null;
+  try{ const r=await fetch(`https://finnhub.io/api/v1/candle?symbol=${sym}&resolution=60&from=${Math.floor(Date.now()/1000)-86400*7}&to=${Math.floor(Date.now()/1000)}&token=${key}`); if(!r.ok) return null; const j=await r.json(); return j.s==="ok"? j:null;}catch(e){return null;}
+};
+
+// ---------- GLOW-VERKNÜPFUNG (nach Chart, damit datasets/chart existieren) ----------
+const ETFSYM2IDX=Object.fromEntries(ETFS.map((e,i)=>[e[1],i]));
+const ORIG_COLOR=[...COLORS]; const ORIG_W=datasets.map(d=>d.borderWidth); let _savedHidden=null;
+function setGlow(syms){
+  const idxs=new Set(syms.map(s=>ETFSYM2IDX[s]).filter(i=>i!==undefined));
+  if(_savedHidden===null) _savedHidden=[...datasets.map(d=>d.hidden)];
+  datasets.forEach((d,i)=>{const on=idxs.has(i); if(on) d.hidden=false; d.borderWidth=on?4.2:ORIG_W[i]; d.borderColor=on?"#ffffff":ORIG_COLOR[i]; d.pointRadius=on?2:0; d.pointBackgroundColor="#fff8c9";});
+  chart.update();
+  document.querySelectorAll("#etfToggle label").forEach(l=>{
+    const sym=l.textContent.trim().split(/\s+/).pop();
+    l.classList.toggle("glow", syms.includes(sym));
+  });
+  document.querySelectorAll(".tick").forEach(t=>{
+    const s=t.getAttribute("data-sym")||t.getAttribute("data-kurz");
+    const on=syms.includes(s) || syms.some(x=> t.textContent.includes(x));
+    t.classList.toggle("glow",on);
+  });
+  document.querySelectorAll("#etfTable tbody tr").forEach((tr,i)=>{
+    const sym=ETFS[i][1]; tr.classList.toggle("glow", syms.includes(sym));
+  });
+  document.querySelectorAll("#impactTable tbody tr").forEach(tr=>{
+    const sym=tr.querySelector("td b")?.textContent.trim();
+    if(sym && syms.includes(sym)) tr.classList.add("glow");
+  });
+}
+function clearGlow(){
+  if(_savedHidden!==null){ datasets.forEach((d,i)=>{d.hidden=_savedHidden[i];}); _savedHidden=null; }
+  datasets.forEach((d,i)=>{d.borderWidth=ORIG_W[i]; d.borderColor=ORIG_COLOR[i]; d.pointRadius=0;});
+  chart.update(); renderToggle();
+  document.querySelectorAll(".glow").forEach(el=>el.classList.remove("glow"));
+}
+function bindImpactGlow(){
+  document.querySelectorAll("#impactTable tbody tr").forEach(tr=>{
+    const sym=tr.querySelector("td b")?.textContent.trim(); if(!sym) return;
+    tr.addEventListener("mouseenter",()=>setGlow([sym]));
+    tr.addEventListener("mouseleave",clearGlow);
+    tr.addEventListener("click",()=>{setGlow([sym]); setTimeout(clearGlow,1800);});
+  });
+}
+const _renderImpactOrig=renderImpact;
+renderImpact=function(){_renderImpactOrig(); bindImpactGlow();};
+renderImpact();
+// News-Hover ebenfalls leuchten
+function bindNewsGlow(){
+  document.querySelectorAll("#newsList li").forEach(li=>{
+    li.addEventListener("mouseenter",()=>{const a=NEWS_AFFECT[+li.dataset.idx]||[]; if(a.length) setGlow(a);});
+    li.addEventListener("mouseleave",clearGlow);
+    li.addEventListener("click",()=>{const a=NEWS_AFFECT[+li.dataset.idx]||[]; if(a.length){setGlow(a); setTimeout(clearGlow,1800);}});
+  });
+}
+// own-Buttons unter Graph nun ebenfalls binden
+if($("btnRecalc2")) $("btnRecalc2").onclick=()=>{IMPACT=impactFor(Date.now());renderImpact();$("apiStatus").textContent="Status: Impact neu bewertet "+new Date().toLocaleTimeString('de-DE')+" (Score ab 70, 4 Treiber).";};
+bindNewsGlow();
+
+// ---------- TAGESGELD ----------
+const TG=[["Trade Republic","3,00 %*","08/2026","Preisverzeichnis TR"],["ING Extra-Konto","2,75 %","08/2026","ing.de"],["Consorsbank","2,90 % (3 Mon.)","08/2026","consorsbank.de"],["DKB Tagesgeld","2,25 %","08/2026","dkb.de"],["Renault Bank direkt","2,80 %","08/2026","renault-bank-direkt.de"]];
+document.querySelector("#tgTable tbody").innerHTML=TG.map(t=>`<tr><td><b>${t[0]}</b></td><td>${t[1]}</td><td>${t[2]}</td><td><a href="#" onclick="return false">${t[3]}</a></td></tr>`).join("")+`<tr><td colspan="4" style="color:var(--mut)">* Aktions-/Neukundenzins möglich – vor Abschluss Konditionen + Einlagensicherung prüfen.</td></tr>`;
+
+// ---------- PAKETE ----------
+const PK=[["🇪🇺 EU – NextGenEU / Green Deal Industrial Plan","~800 Mrd € (Anleihen bis 2026) + Netto-Null-Industrie-Förderung","Status: Auszahlung lfd. · Relevant: INGR (Clean Energy), IMEU · Quelle: EU-Kommission, 08/2026"],
+["🇺🇸 USA – Inflation Reduction Act (IRA) + CHIPS Act","369 Mrd $ Klima + 52 Mrd $ Halbleiter","Status: Tax-Credits lfd. · Relevant: SXR8, SXRV (US-Tech/Industrie) · Quelle: US Treasury/White House, 08/2026"],
+["🇨🇳/🇯🇵 Asien – CN-Stimulus + JP Halbleiter-Paket","CN: 1 Bio. Yuan Sonderbonds; JP: 10 Bio. ¥ Chips/Energie (Plan)","Status: Tranchen 2025–27 · Relevant: XDBC, XDJP, EIMI · Quelle: NDRC/METI via Reuters, 08/2026"]];
+$("pakete").innerHTML=PK.map(p=>`<div class="pkg"><b>${p[0]}</b><br>${p[1]}<small>${p[2]}</small></div>`).join("");
+</script>
+</body>
+</html>
